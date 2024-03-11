@@ -34,7 +34,7 @@ impl Server {
     pub async fn start(self) -> Result<()> {
         let blueprint = Blueprint::try_from(&self.config_module).map_err(CLIError::from)?;
         
-        let mut pathsMap = &HashMap::new();
+        let mut pathsMap = HashMap::new();
         for type_ in self.config_module.config.types.values() {
             for field in type_.fields.values() {
                 if let Some(http) = &field.http {
