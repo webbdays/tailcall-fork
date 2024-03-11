@@ -33,6 +33,21 @@ impl Server {
     /// Starts the server in the current Runtime
     pub async fn start(self) -> Result<()> {
         let blueprint = Blueprint::try_from(&self.config_module).map_err(CLIError::from)?;
+        
+        let mut pathsMap = &HashMap::new();
+        for type_ in self.config_module.config.types.values() {
+            for field in type_.fields.values() {
+                if let Some(http) = &field.http {
+                    pathsMap.insert(http.path, http.on_request);
+                }
+            }
+        }
+        let server_config = Arc::new(ServerConfig::new(
+            blueprint.clone(),
+            self.config_module.extensions.endpoints,
+            pathsMap,
+        ));
+        
         let server_config = Arc::new(ServerConfig::new(
             blueprint.clone(),
             self.config_module.extensions.endpoints,
@@ -41,6 +56,7 @@ impl Server {
         init_opentelemetry(
             blueprint.opentelemetry.clone(),
             &server_config.app_ctx.runtime,
+            pathsMap
         )?;
 
         match blueprint.server.http.clone() {
