@@ -2,7 +2,6 @@ use std::fmt::Write;
 
 use async_graphql::dynamic::Schema;
 
-
 use super::{Blueprint, SchemaModifiers};
 use crate::valid::{Cause, Valid, Validator};
 
@@ -11,6 +10,8 @@ pub struct OperationQuery {
     query: String,
     file: String,
 }
+
+// test
 
 impl OperationQuery {
     pub fn new(query: String, trace: String) -> Self {
