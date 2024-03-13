@@ -26,31 +26,31 @@ impl Display for TextCase {
 pub struct Lint {
     ///
     /// To autoFix the lint.
-    /// Example Usage lint:{autoFix:true}
+    /// Example Usage lint:{autoFix:true}, this is optional setting.
     #[serde(rename = "autoFix")]
     pub auto_fix: Option<bool>,
     ///
     ///
-    /// This enum is provided with appropriate TextCase.
-    /// Example Usage: lint:{enum:Pascal}
+    /// We can specify the text case for the enum names.
+    /// Example Usage: lint:{enum:Pascal}, this is optional setting.
     #[serde(rename = "enum")]
     pub enum_lint: Option<TextCase>,
     ///
     ///
-    /// This enumValue is provided with appropriate TextCase.
-    /// Example Usage: lint:{enumValue:ScreamingSnake}
+    /// We can specify the text case for the values in enums.
+    /// Example Usage: lint:{enumValue:ScreamingSnake}, this is optional setting.
     #[serde(rename = "enumValue")]
     pub enum_value_lint: Option<TextCase>,
     ///
     ///
-    /// This field is provided with appropriate TextCase.
-    /// Example Usage: lint:{field:Camel}
+    /// We can specify the text case for field names.
+    /// Example Usage: lint:{field:Camel}, this is optional setting.
     #[serde(rename = "field")]
     pub field_lint: Option<TextCase>,
     ///
     ///
-    /// This type is provided with appropriate TextCase.
-    /// Example Usage: lint:{type:Pascal}
+    /// We can specify the text case for type names.
+    /// Example Usage: lint:{type:Pascal} , this is optional setting.
     #[serde(rename = "type")]
     pub type_lint: Option<TextCase>,
 }
