@@ -6,10 +6,8 @@ use std::sync::Arc;
 use std::{fs, panic};
 
 use anyhow::Context;
-use colored::Colorize;
 use futures_util::future::join_all;
 use hyper::{Body, Request};
-use serde::{Deserialize, Serialize};
 use tailcall::async_graphql_hyper::{GraphQLBatchRequest, GraphQLRequest};
 use tailcall::blueprint::Blueprint;
 use tailcall::config::reader::ConfigReader;
@@ -19,16 +17,10 @@ use tailcall::merge_right::MergeRight;
 use tailcall::print_schema::print_schema;
 use tailcall::valid::{Cause, ValidationError, Validator as _};
 
-use super::model::{Annotation, ExecutionSpec};
-use super::runtime::{APIRequest, APIResponse, MockFileSystem, MockHttpClient};
+use super::model::{
+    APIRequest, APIResponse, Annotation, ExecutionSpec, MockFileSystem, MockHttpClient, SDLError,
+};
 use crate::executionspec::runtime;
-
-#[derive(Debug, Default, Deserialize, Serialize, PartialEq)]
-struct SDLError {
-    message: String,
-    trace: Vec<String>,
-    description: Option<String>,
-}
 
 impl<'a> From<Cause<&'a str>> for SDLError {
     fn from(value: Cause<&'a str>) -> Self {
@@ -278,6 +270,7 @@ async fn test_spec(spec: ExecutionSpec) {
 }
 
 pub async fn load_and_test_execution_spec(path: &Path) -> anyhow::Result<()> {
+    
     let contents = fs::read_to_string(path)?;
     let spec: ExecutionSpec = ExecutionSpec::from_source(path, contents)
         .await
@@ -285,9 +278,8 @@ pub async fn load_and_test_execution_spec(path: &Path) -> anyhow::Result<()> {
 
     match spec.runner {
         Some(Annotation::Skip) => {
-            println!("{} ... {}", spec.path.display(), "skipped".blue());
+            println!("test {:}::{:} ... skipped", "run_execution_spec", &spec.safe_name);
         }
-        Some(Annotation::Only) => {}
         None => test_spec(spec).await,
     }
 

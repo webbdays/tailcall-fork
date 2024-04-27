@@ -1,7 +1,7 @@
 extern crate core;
 
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::panic;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -11,74 +11,17 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context};
 use hyper::body::Bytes;
 use reqwest::header::{HeaderName, HeaderValue};
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tailcall::cache::InMemoryCache;
 use tailcall::cli::javascript;
-use tailcall::http::{Method, Response};
+use tailcall::http::Response;
 use tailcall::runtime::TargetRuntime;
 use tailcall::{blueprint, EnvIO, FileIO, HttpIO};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use url::Url;
 
-use super::model::ExecutionSpec;
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct APIRequest {
-    #[serde(default)]
-    pub method: Method,
-    pub url: Url,
-    #[serde(default)]
-    pub headers: BTreeMap<String, String>,
-    #[serde(default)]
-    pub body: serde_json::Value,
-    #[serde(default)]
-    pub test_traces: bool,
-    #[serde(default)]
-    pub test_metrics: bool,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct APIResponse {
-    #[serde(default = "default_status")]
-    pub status: u16,
-    #[serde(default)]
-    pub headers: BTreeMap<String, String>,
-    #[serde(default)]
-    pub body: serde_json::Value,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub text_body: Option<String>,
-}
-
-fn default_status() -> u16 {
-    200
-}
-
-fn default_expected_hits() -> usize {
-    1
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-struct UpstreamRequest(APIRequest);
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-struct UpstreamResponse(APIResponse);
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Mock {
-    request: UpstreamRequest,
-    response: UpstreamResponse,
-    #[serde(default = "default_expected_hits")]
-    expected_hits: usize,
-}
-
-#[derive(Clone, Debug)]
-struct ExecutionMock {
-    mock: Mock,
-    actual_hits: Arc<AtomicUsize>,
-}
+use super::model::{
+    ExecutionMock, ExecutionSpec, MockFileSystem, MockHttpClient, TestEnvIO, TestFileIO,
+};
 
 impl ExecutionMock {
     fn test_hits(&self, path: impl AsRef<Path>) {
@@ -113,12 +56,6 @@ impl ExecutionMock {
             path.as_ref()
         );
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct MockHttpClient {
-    mocks: Vec<ExecutionMock>,
-    spec_path: String,
 }
 
 impl MockHttpClient {
@@ -275,10 +212,6 @@ impl HttpIO for MockHttpClient {
     }
 }
 
-pub struct MockFileSystem {
-    spec: ExecutionSpec,
-}
-
 impl MockFileSystem {
     pub fn new(spec: ExecutionSpec) -> MockFileSystem {
         MockFileSystem { spec }
@@ -305,9 +238,6 @@ impl FileIO for MockFileSystem {
     }
 }
 
-#[derive(Clone)]
-struct TestFileIO {}
-
 impl TestFileIO {
     fn init() -> Self {
         TestFileIO {}
@@ -332,11 +262,6 @@ impl FileIO for TestFileIO {
             .map_err(|e| anyhow!("{}", e))?;
         Ok(String::from_utf8(buffer)?)
     }
-}
-
-#[derive(Clone)]
-struct TestEnvIO {
-    vars: HashMap<String, String>,
 }
 
 impl EnvIO for TestEnvIO {

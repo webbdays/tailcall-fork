@@ -18,12 +18,9 @@ use tailcall::http::AppContext;
 use tailcall::runtime::TargetRuntime;
 use tailcall::EnvIO;
 
-use super::model::{Annotation, ExecutionSpec};
-use super::runtime::{APIRequest, Mock, MockFileSystem, MockHttpClient};
-
-struct Env {
-    env: HashMap<String, String>,
-}
+use super::model::{
+    APIRequest, Annotation, Env, ExecutionSpec, Mock, MockFileSystem, MockHttpClient,
+};
 
 impl EnvIO for Env {
     fn get(&self, key: &str) -> Option<Cow<'_, str>> {
@@ -107,7 +104,6 @@ impl ExecutionSpec {
                             if let Some(Node::Text(text)) = heading.children.first() {
                                 runner = Some(match text.value.as_str() {
                                     "skip" => Annotation::Skip,
-                                    "only" => Annotation::Only,
                                     _ => {
                                         return Err(anyhow!(
                                             "Unexpected runner annotation {:?} in {:?}",
