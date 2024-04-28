@@ -270,7 +270,6 @@ async fn test_spec(spec: ExecutionSpec) {
 }
 
 pub async fn load_and_test_execution_spec(path: &Path) -> anyhow::Result<()> {
-    
     let contents = fs::read_to_string(path)?;
     let spec: ExecutionSpec = ExecutionSpec::from_source(path, contents)
         .await
@@ -278,7 +277,9 @@ pub async fn load_and_test_execution_spec(path: &Path) -> anyhow::Result<()> {
 
     match spec.runner {
         Some(Annotation::Skip) => {
-            println!("test {:}::{:} ... skipped", "run_execution_spec", &spec.safe_name);
+            println!(
+                "test run_execution_spec::{:} ... skipped", &spec.safe_name
+            );
         }
         None => test_spec(spec).await,
     }
