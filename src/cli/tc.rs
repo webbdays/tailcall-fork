@@ -5,7 +5,7 @@ use anyhow::Result;
 use clap::Parser;
 use convert_case::{Case, Casing};
 use dotenvy::dotenv;
-use inquire::Confirm;
+use inquire::{Confirm, Select, Text};
 use lazy_static::lazy_static;
 use stripmargin::StripMargin;
 
@@ -95,29 +95,173 @@ pub async fn run() -> Result<()> {
 }
 
 pub async fn init(folder_path: &str) -> Result<()> {
-    let folder_exists = fs::metadata(folder_path).is_ok();
+    // 0. some common tasks
+    let hello_world_graphql_config = r#"
+schema @server(showcase: true) {
+  query: Query
+}
 
-    if !folder_exists {
-        let confirm = Confirm::new(&format!(
-            "Do you want to create the folder {}?",
-            folder_path
-        ))
-        .with_default(false)
+type User {
+  id: Int!
+  name: String!
+}
+
+type Query {
+  Hello_World: User
+    @http(
+      path: "/users/1"
+      baseURL: "http://jsonplaceholder.typicode.com"
+    )
+}
+    "#;
+
+    let hello_world_yaml_config = r#"
+server:
+  showcase: true
+schema:
+  query: Query
+types:
+  User:
+    fields:
+      id:
+        type: Int
+        required: true
+      name:
+        type: Int
+        required: true
+  Query:
+    fields:
+      Hello_World:
+        type: User
+        http:
+          path: /users/1
+          baseURL: http://jsonplaceholder.typicode.com
+    "#;
+
+    let hello_world_json_config = r#"
+{
+  "server": {
+    "showcase": true
+  },
+  "schema": {
+    "query": "Query"
+  },
+  "types": {
+    "User": {
+      "fields": {
+        "id": {
+          "type": "Int",
+          "required": true
+        },
+        "name": {
+          "type": "String",
+          "required": true
+        }
+      }
+    },
+    "Query": {
+      "fields": {
+        "HelloWorld": {
+          "type": "User",
+          "http": {
+            "path": "/users/1",
+            "baseURL": "http://jsonplaceholder.typicode.com"
+          }
+        }
+      }
+    }
+  }
+}
+    "#;
+
+    // 1. Ask the project name
+    let project_name = Text::new("Please enter the project name : ")
+        .with_default(folder_path)
         .prompt()?;
 
-        if confirm {
-            fs::create_dir_all(folder_path)?;
+    // 2. Ask the file format
+    let file_format_options = vec!["Graphql", "Json", "Yaml"];
+    let file_format =
+        Select::new("Please select the file format : ", file_format_options).prompt()?;
+
+    fn create_project_folder(project_name: String) -> Result<bool> {
+        let folder_exists = fs::metadata(project_name.clone()).is_ok();
+
+        if !folder_exists {
+            let confirm = Confirm::new(&format!(
+                "Do you want to create the folder {}?",
+                project_name.clone()
+            ))
+            .with_default(false)
+            .prompt()?;
+
+            if confirm {
+                fs::create_dir_all(project_name.clone())?;
+                tracing::info!("Created project folder : '{}'", project_name.clone());
+                return Ok(true);
+            } else {
+                return Ok(false);
+            };
         } else {
-            return Ok(());
-        };
+            tracing::info!("project folder : '{}' already exists. Exiting.", project_name.clone());
+            return Ok(false);
+        }
+    }
+
+    // 3. generate helloworld config file
+    match file_format {
+        "Graphql" => {
+            // Generate project_name.graphql in project_name
+            if !create_project_folder(project_name.clone())? {
+                return Ok(());
+            }
+            let hello_world_config_path =
+                Path::new(project_name.clone().as_str()).join(project_name.clone() + ".graphql");
+            fs::write(hello_world_config_path, hello_world_graphql_config)?;
+            tracing::info!(
+                "Generated file : '{}.graphql' in '{}'",
+                project_name.clone(),
+                project_name.clone()
+            );
+        }
+        "Json" => {
+            // Generate project_name.json in project_name
+            if !create_project_folder(project_name.clone())? {
+                return Ok(());
+            }
+            let hello_world_config_path =
+                Path::new(project_name.clone().as_str()).join(project_name.clone() + ".json");
+            fs::write(hello_world_config_path, hello_world_json_config)?;
+            tracing::info!(
+                "Generated file : '{}.json' in '{}'",
+                project_name.clone(),
+                project_name.clone()
+            );
+        }
+        "Yaml" => {
+            // Generate project_name.yml in project_name
+            if !create_project_folder(project_name.clone())? {
+                return Ok(());
+            }
+            let hello_world_config_path =
+                Path::new(project_name.clone().as_str()).join(project_name.clone() + ".yaml");
+            fs::write(hello_world_config_path, hello_world_yaml_config)?;
+            tracing::info!(
+                "Generated file : '{}.yaml' in '{}'",
+                project_name.clone(),
+                project_name.clone()
+            );
+        }
+        _ => {}
     }
 
     let tailcallrc = include_str!("../../generated/.tailcallrc.graphql");
     let tailcallrc_json: &str = include_str!("../../generated/.tailcallrc.schema.json");
 
-    let file_path = Path::new(folder_path).join(FILE_NAME);
-    let json_file_path = Path::new(folder_path).join(JSON_FILE_NAME);
-    let yml_file_path = Path::new(folder_path).join(YML_FILE_NAME);
+    let file_path = Path::new(&project_name.clone()).join(project_name.clone() + FILE_NAME);
+    let json_file_path =
+        Path::new(&project_name.clone()).join(project_name.clone() + JSON_FILE_NAME);
+    let yml_file_path = Path::new(&project_name.clone()).join(project_name.clone() + YML_FILE_NAME);
 
     let tailcall_exists = fs::metadata(&file_path).is_ok();
 
@@ -129,11 +273,33 @@ pub async fn init(folder_path: &str) -> Result<()> {
 
         if confirm {
             fs::write(&file_path, tailcallrc.as_bytes())?;
+            tracing::info!(
+                "Generated file : '{}.tailcallrc.graphql' in '{}'",
+                project_name.clone(),
+                project_name.clone()
+            );
+
             fs::write(&json_file_path, tailcallrc_json.as_bytes())?;
+            tracing::info!(
+                "Generated file : '{}.tailcallrc.schema.json' in '{}'",
+                project_name.clone(),
+                project_name.clone()
+            );
         }
     } else {
         fs::write(&file_path, tailcallrc.as_bytes())?;
+        tracing::info!(
+            "Generated file : '{}.tailcallrc.graphql' in '{}'",
+            project_name.clone(),
+            project_name.clone()
+        );
+
         fs::write(&json_file_path, tailcallrc_json.as_bytes())?;
+        tracing::info!(
+            "Generated file : '{}.tailcallrc.schema.json' in '{}'",
+            project_name.clone(),
+            project_name.clone()
+        );
     }
 
     let yml_exists = fs::metadata(&yml_file_path).is_ok();
@@ -147,6 +313,11 @@ pub async fn init(folder_path: &str) -> Result<()> {
         .strip_margin();
 
         fs::write(&yml_file_path, graphqlrc)?;
+        tracing::info!(
+            "Generated file : '{}.graphqlrc.yaml' in '{}'",
+            project_name.clone(),
+            project_name.clone()
+        );
     }
 
     let graphqlrc = fs::read_to_string(&yml_file_path)?;
@@ -173,6 +344,11 @@ pub async fn init(folder_path: &str) -> Result<()> {
                     schema.push(serde_yaml::Value::from("./.tailcallrc.graphql"));
                     let updated = serde_yaml::to_string(&yaml)?;
                     fs::write(yml_file_path, updated)?;
+                    tracing::info!(
+                        "Modified file : '{}.graphqlrc.yaml' in '{}'",
+                        project_name.clone(),
+                        project_name.clone()
+                    );
                 }
             }
         }
